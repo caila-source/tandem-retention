@@ -389,9 +389,23 @@ function setFilter(f, el) {
 }
 
 function initData(data) {
-  allCohortRows   = data.cohortData   || [];
-  allPracticeRows = data.practiceData || [];
-  allLapsedNPIs   = data.lapsedNPIs   || [];
+  function toRows(d) {
+    if (!d) return [];
+    if (Array.isArray(d)) return d;
+    var keys = Object.keys(d);
+    if (!keys.length) return [];
+    var len = d[keys[0]].length;
+    var rows = [];
+    for (var i = 0; i < len; i++) {
+      var row = {};
+      keys.forEach(function(k) { row[k] = d[k][i]; });
+      rows.push(row);
+    }
+    return rows;
+  }
+  allCohortRows   = toRows(data.cohortData);
+  allPracticeRows = toRows(data.practiceData);
+  allLapsedNPIs   = toRows(data.lapsedNPIs);
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   renderMain();
@@ -400,10 +414,10 @@ function initData(data) {
 function loadFromHash() {
   try {
     var hash = window.location.hash.slice(1);
-    if (hash) {
-      var data = JSON.parse(atob(hash));
-      initData(data);
-    }
+    if (!hash) return;
+    var decoded = decodeURIComponent(hash);
+    var data = JSON.parse(atob(decoded));
+    initData(data);
   } catch(e) {}
 }
 
