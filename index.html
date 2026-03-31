@@ -361,11 +361,23 @@ function initData(data) {
   document.getElementById('app').style.display = 'block';
   renderMain();
 }
+function loadFromHash() {
+  try {
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      const data = JSON.parse(atob(hash));
+      initData(data);
+    }
+  } catch(e) {}
+}
 
 window.addEventListener('message', function(event) {
   if (event.data && event.data.type === 'retool-data') {
     initData(event.data);
   }
+});
+
+loadFromHash();
 });
 </script>
 </body>
