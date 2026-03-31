@@ -96,10 +96,10 @@ tr:last-child td { border-bottom: none; }
   </div>
   <div class="legend">
     <span class="legend-label">Retention:</span>
-    <div class="legend-item"><div class="legend-swatch" style="background:#b7e1cd"></div>≥90%</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#d4edda"></div>≥85%</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#fff3cd"></div>≥80%</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#fce8e6"></div>≥75%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#b7e1cd"></div>&gt;=90%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#d4edda"></div>&gt;=85%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#fff3cd"></div>&gt;=80%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#fce8e6"></div>&gt;=75%</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#f4c7c3"></div>&lt;75%</div>
   </div>
 
@@ -109,7 +109,7 @@ tr:last-child td { border-bottom: none; }
         <div class="panel-title" id="p-title"></div>
         <div class="panel-sub" id="p-sub"></div>
       </div>
-      <button class="close-btn" id="p-close">✕</button>
+      <button class="close-btn" id="p-close">X</button>
     </div>
     <div class="panel-scroll">
       <table class="ptable">
@@ -125,7 +125,7 @@ tr:last-child td { border-bottom: none; }
         <div class="panel-title" id="n-title"></div>
         <div class="panel-sub" id="n-sub"></div>
       </div>
-      <button class="close-btn" id="n-close">✕</button>
+      <button class="close-btn" id="n-close">X</button>
     </div>
     <div class="npi-toolbar">
       <span class="npi-count" id="n-count"></span>
@@ -150,18 +150,18 @@ tr:last-child td { border-bottom: none; }
 </div>
 
 <script>
-const MONTHS = ['m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','m13','m14','m15','m16'];
-let currentFilter = 'all';
-let selectedCohort = null;
-let selectedPractice = null;
-let currentNPIs = [];
-let allCohortRows = [];
-let allPracticeRows = [];
-let allLapsedNPIs = [];
+var MONTHS = ['m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','m13','m14','m15','m16'];
+var currentFilter = 'all';
+var selectedCohort = null;
+var selectedPractice = null;
+var currentNPIs = [];
+var allCohortRows = [];
+var allPracticeRows = [];
+var allLapsedNPIs = [];
 
 function getColor(v) {
   if (v == null) return null;
-  const p = v <= 1 ? v * 100 : v;
+  var p = v <= 1 ? v * 100 : v;
   if (p >= 90) return 'background:#b7e1cd;color:#085041';
   if (p >= 85) return 'background:#d4edda;color:#0F6E56';
   if (p >= 80) return 'background:#fff3cd;color:#633806';
@@ -175,89 +175,104 @@ function toP(v) {
 }
 
 function getCohortMonths() {
-  const seen = new Set();
-  const months = [];
-  allCohortRows.forEach(r => {
-    if (!seen.has(r.cohort_month)) {
-      seen.add(r.cohort_month);
+  var seen = {};
+  var months = [];
+  allCohortRows.forEach(function(r) {
+    if (!seen[r.cohort_month]) {
+      seen[r.cohort_month] = true;
       months.push({ key: r.cohort_month, label: r.cohort_label });
     }
   });
-  return months.sort((a,b) => a.key < b.key ? -1 : 1);
+  return months.sort(function(a,b) { return a.key < b.key ? -1 : 1; });
 }
 
 function getCohortRowData(cohortMonth) {
-  const rows = allCohortRows.filter(r => r.cohort_month === cohortMonth);
-  const entRow = rows.find(r => r.enterprise_vs_smb === 'enterprise');
-  const smbRow = rows.find(r => r.enterprise_vs_smb === 'smb');
-  if (currentFilter === 'enterprise') return entRow || null;
-  if (currentFilter === 'smb') return smbRow || null;
+  var rows = allCohortRows.filter(function(r) { return r.cohort_month === cohortMonth; });
+  var entRow = null, smbRow = null;
+  rows.forEach(function(r) {
+    if (r.enterprise_vs_smb === 'enterprise') entRow = r;
+    if (r.enterprise_vs_smb === 'smb') smbRow = r;
+  });
+  if (currentFilter === 'enterprise') return entRow;
+  if (currentFilter === 'smb') return smbRow;
   if (!entRow && !smbRow) return null;
   if (!entRow) return smbRow;
   if (!smbRow) return entRow;
-  const es = entRow.month_1_npis || 0;
-  const ss = smbRow.month_1_npis || 0;
-  const merged = { cohort_month: cohortMonth, cohort_label: entRow.cohort_label, month_1_npis: es + ss };
-  MONTHS.forEach(mk => {
-    const ev = entRow[mk], sv = smbRow[mk];
+  var es = entRow.month_1_npis || 0;
+  var ss = smbRow.month_1_npis || 0;
+  var merged = { cohort_month: cohortMonth, cohort_label: entRow.cohort_label, month_1_npis: es + ss };
+  MONTHS.forEach(function(mk) {
+    var ev = entRow[mk], sv = smbRow[mk];
     if (ev == null && sv == null) { merged[mk] = null; return; }
-    const eA = ev != null ? es * (ev <= 1 ? ev : ev/100) : 0;
-    const sA = sv != null ? ss * (sv <= 1 ? sv : sv/100) : 0;
-    const tot = (ev != null ? es : 0) + (sv != null ? ss : 0);
+    var eA = ev != null ? es * (ev <= 1 ? ev : ev/100) : 0;
+    var sA = sv != null ? ss * (sv <= 1 ? sv : sv/100) : 0;
+    var tot = (ev != null ? es : 0) + (sv != null ? ss : 0);
     merged[mk] = tot > 0 ? (eA + sA) / tot : null;
   });
   return merged;
 }
 
 function renderMain() {
-  const cohortMonths = getCohortMonths();
-  document.getElementById('thead').innerHTML = '<tr><th>Cohort</th><th>Size</th>' + MONTHS.map((_,i) => '<th>'+(i+2)+'</th>').join('') + '</tr>';
+  var cohortMonths = getCohortMonths();
+  var hdr = '<tr><th>Cohort</th><th>Size</th>';
+  MONTHS.forEach(function(_,i) { hdr += '<th>' + (i+2) + '</th>'; });
+  hdr += '</tr>';
+  document.getElementById('thead').innerHTML = hdr;
 
-  let totalNPIs = 0, m2sum = 0, m2count = 0, latestLabel = '';
-  document.getElementById('tbody').innerHTML = cohortMonths.map(cm => {
-    const r = getCohortRowData(cm.key);
-    if (!r) return '';
+  var totalNPIs = 0, m2sum = 0, m2count = 0, latestLabel = '';
+  var bodyHtml = '';
+  cohortMonths.forEach(function(cm) {
+    var r = getCohortRowData(cm.key);
+    if (!r) return;
     totalNPIs += r.month_1_npis || 0;
     if (r.m2 != null) { m2sum += toP(r.m2); m2count++; }
     latestLabel = cm.label;
-    const sel = selectedCohort === cm.key;
-    const cells = MONTHS.map(mk => {
-      const v = r[mk];
-      if (v == null) return '<td class="empty-cell">—</td>';
-      const p = toP(v);
-      if (p === 100) return '<td style="color:#888;font-weight:500">100%</td>';
-      return '<td class="pct-cell" style="' + getColor(v) + ';padding:5px 9px">' + p + '%</td>';
+    var sel = selectedCohort === cm.key;
+    var cells = '';
+    MONTHS.forEach(function(mk) {
+      var v = r[mk];
+      if (v == null) { cells += '<td class="empty-cell">-</td>'; return; }
+      var p = toP(v);
+      if (p === 100) { cells += '<td style="color:#888;font-weight:500">100%</td>'; return; }
+      cells += '<td class="pct-cell" style="' + getColor(v) + ';padding:5px 9px">' + p + '%</td>';
     });
-    return '<tr class="cohort-row' + (sel?' selected':'') + '" data-cohort="' + cm.key + '" data-label="' + cm.label + '"><td>' + cm.label + '</td><td>' + (r.month_1_npis||0).toLocaleString() + '</td>' + cells.join('') + '</tr>';
-  }).join('');
-
-  const avgCells = MONTHS.map(mk => {
-    const vals = cohortMonths.map(cm => { const r = getCohortRowData(cm.key); return r ? r[mk] : null; }).filter(v => v != null && toP(v) !== 100);
-    if (!vals.length) return '<td class="empty-cell">—</td>';
-    const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
-    return '<td class="pct-cell" style="' + getColor(avg) + ';padding:5px 9px;font-weight:500">' + toP(avg) + '%</td>';
+    bodyHtml += '<tr class="cohort-row' + (sel ? ' selected' : '') + '" data-cohort="' + cm.key + '" data-label="' + cm.label + '"><td>' + cm.label + '</td><td>' + (r.month_1_npis||0).toLocaleString() + '</td>' + cells + '</tr>';
   });
-  document.getElementById('tfoot').innerHTML = '<tr class="avg-row"><td>Avg</td><td></td>' + avgCells.join('') + '</tr>';
+  document.getElementById('tbody').innerHTML = bodyHtml;
 
-  const latestSize = (getCohortRowData(cohortMonths[cohortMonths.length-1]?.key)?.month_1_npis||0).toLocaleString();
+  var avgHtml = '<tr class="avg-row"><td>Avg</td><td></td>';
+  MONTHS.forEach(function(mk) {
+    var vals = [];
+    cohortMonths.forEach(function(cm) {
+      var r = getCohortRowData(cm.key);
+      if (r && r[mk] != null && toP(r[mk]) !== 100) vals.push(r[mk]);
+    });
+    if (!vals.length) { avgHtml += '<td class="empty-cell">-</td>'; return; }
+    var avg = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+    avgHtml += '<td class="pct-cell" style="' + getColor(avg) + ';padding:5px 9px;font-weight:500">' + toP(avg) + '%</td>';
+  });
+  avgHtml += '</tr>';
+  document.getElementById('tfoot').innerHTML = avgHtml;
+
+  var latestR = getCohortRowData(cohortMonths.length ? cohortMonths[cohortMonths.length-1].key : null);
   document.getElementById('summary-bar').innerHTML =
     '<div class="scard"><div class="scard-label">Total NPIs</div><div class="scard-val">' + totalNPIs.toLocaleString() + '</div><div class="scard-sub">all cohorts</div></div>' +
-    '<div class="scard"><div class="scard-label">Avg M2 retention</div><div class="scard-val">' + (m2count ? Math.round(m2sum/m2count) : '—') + '%</div><div class="scard-sub">across all cohorts</div></div>' +
-    '<div class="scard"><div class="scard-label">Latest cohort</div><div class="scard-val">' + latestSize + '</div><div class="scard-sub">' + latestLabel + '</div></div>';
+    '<div class="scard"><div class="scard-label">Avg M2 retention</div><div class="scard-val">' + (m2count ? Math.round(m2sum/m2count) : '-') + '%</div><div class="scard-sub">across all cohorts</div></div>' +
+    '<div class="scard"><div class="scard-label">Latest cohort</div><div class="scard-val">' + (latestR ? (latestR.month_1_npis||0).toLocaleString() : '-') + '</div><div class="scard-sub">' + latestLabel + '</div></div>';
 
-  document.querySelectorAll('.cohort-row').forEach(row => {
+  document.querySelectorAll('.cohort-row').forEach(function(row) {
     row.addEventListener('click', function() {
-      const cohort = this.getAttribute('data-cohort');
-      const label = this.getAttribute('data-label');
+      var cohort = this.getAttribute('data-cohort');
+      var label = this.getAttribute('data-label');
       if (selectedCohort === cohort) {
         selectedCohort = null; selectedPractice = null;
-        document.querySelectorAll('.cohort-row').forEach(r=>r.classList.remove('selected'));
+        document.querySelectorAll('.cohort-row').forEach(function(r){r.classList.remove('selected');});
         document.getElementById('practice-panel').style.display = 'none';
         document.getElementById('npi-panel').style.display = 'none';
         document.getElementById('hint').textContent = 'Click a cohort row to see practice breakdown.';
       } else {
         selectedCohort = cohort; selectedPractice = null;
-        document.querySelectorAll('.cohort-row').forEach(r=>r.classList.remove('selected'));
+        document.querySelectorAll('.cohort-row').forEach(function(r){r.classList.remove('selected');});
         this.classList.add('selected');
         document.getElementById('npi-panel').style.display = 'none';
         renderPractices(cohort, label);
@@ -268,38 +283,48 @@ function renderMain() {
 }
 
 function renderPractices(cohortMonth, cohortLabel) {
-  let rows = allPracticeRows.filter(r => r.cohort_month === cohortMonth);
-  if (currentFilter !== 'all') rows = rows.filter(r => r.enterprise_vs_smb === currentFilter);
-  const maxVis = Math.max.apply(null, rows.map(r => { let last = 1; MONTHS.forEach((mk,i) => { if (r[mk] != null) last = i+2; }); return last; }).concat([2]));
-  const showMonths = MONTHS.slice(0, maxVis - 1);
-  document.getElementById('p-title').textContent = cohortLabel + ' cohort — practice breakdown';
-  document.getElementById('p-sub').textContent = rows.length + ' practices · ' + (currentFilter === 'all' ? 'all segments' : currentFilter);
-  document.getElementById('pthead').innerHTML = '<tr><th>Practice</th><th>Seg</th><th>Size</th>' + showMonths.map((_,i)=>'<th>M'+(i+2)+'</th>').join('') + '<th>Lost M2</th></tr>';
-  document.getElementById('ptbody').innerHTML = rows.slice().sort((a,b)=>(b.month_1_npis||0)-(a.month_1_npis||0)).map(p => {
-    const lostM2 = p.m2 != null ? (p.month_1_npis||0) - Math.round((p.month_1_npis||0)*(p.m2<=1?p.m2:p.m2/100)) : null;
-    const cells = showMonths.map(mk => {
-      const v = p[mk];
-      if (v == null) return '<td class="empty-cell">—</td>';
-      const pp = toP(v);
-      if (pp === 100) return '<td style="color:#888;font-weight:500">100%</td>';
-      return '<td class="pct-cell" style="' + getColor(v) + ';padding:4px 9px">' + pp + '%</td>';
+  var rows = allPracticeRows.filter(function(r) { return r.cohort_month === cohortMonth; });
+  if (currentFilter !== 'all') rows = rows.filter(function(r) { return r.enterprise_vs_smb === currentFilter; });
+  var maxVis = 2;
+  rows.forEach(function(r) {
+    MONTHS.forEach(function(mk,i) { if (r[mk] != null && i+2 > maxVis) maxVis = i+2; });
+  });
+  var showMonths = MONTHS.slice(0, maxVis - 1);
+  document.getElementById('p-title').textContent = cohortLabel + ' cohort - practice breakdown';
+  document.getElementById('p-sub').textContent = rows.length + ' practices - ' + (currentFilter === 'all' ? 'all segments' : currentFilter);
+  var thead = '<tr><th>Practice</th><th>Seg</th><th>Size</th>';
+  showMonths.forEach(function(_,i) { thead += '<th>M' + (i+2) + '</th>'; });
+  thead += '<th>Lost M2</th></tr>';
+  document.getElementById('pthead').innerHTML = thead;
+  rows.sort(function(a,b){return (b.month_1_npis||0)-(a.month_1_npis||0);});
+  var tbody = '';
+  rows.forEach(function(p) {
+    var lostM2 = p.m2 != null ? (p.month_1_npis||0) - Math.round((p.month_1_npis||0)*(p.m2<=1?p.m2:p.m2/100)) : null;
+    var cells = '';
+    showMonths.forEach(function(mk) {
+      var v = p[mk];
+      if (v == null) { cells += '<td class="empty-cell">-</td>'; return; }
+      var pp = toP(v);
+      if (pp === 100) { cells += '<td style="color:#888;font-weight:500">100%</td>'; return; }
+      cells += '<td class="pct-cell" style="' + getColor(v) + ';padding:4px 9px">' + pp + '%</td>';
     });
-    const sel = selectedPractice === p.prescriber_practice_name;
-    const badge = p.enterprise_vs_smb==='enterprise' ? '<span class="seg-badge seg-ent">ent</span>' : '<span class="seg-badge seg-smb">smb</span>';
-    return '<tr class="practice-row' + (sel?' selected':'') + '" data-practice="' + p.prescriber_practice_name + '"><td>' + p.prescriber_practice_name + '</td><td>' + badge + '</td><td style="color:#888">' + (p.month_1_npis||0).toLocaleString() + '</td>' + cells.join('') + '<td class="' + (lostM2>0?'lost-num':'') + '">' + (lostM2!==null?lostM2:'—') + '</td></tr>';
-  }).join('');
+    var badge = p.enterprise_vs_smb==='enterprise' ? '<span class="seg-badge seg-ent">ent</span>' : '<span class="seg-badge seg-smb">smb</span>';
+    var sel = selectedPractice === p.prescriber_practice_name;
+    tbody += '<tr class="practice-row' + (sel?' selected':'') + '" data-practice="' + (p.prescriber_practice_name||'').replace(/"/g,'') + '"><td>' + (p.prescriber_practice_name||'') + '</td><td>' + badge + '</td><td style="color:#888">' + (p.month_1_npis||0).toLocaleString() + '</td>' + cells + '<td class="' + (lostM2>0?'lost-num':'') + '">' + (lostM2!==null?lostM2:'-') + '</td></tr>';
+  });
+  document.getElementById('ptbody').innerHTML = tbody;
   document.getElementById('practice-panel').style.display = 'block';
   document.getElementById('practice-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
-  document.querySelectorAll('.practice-row').forEach(row => {
+  document.querySelectorAll('.practice-row').forEach(function(row) {
     row.addEventListener('click', function() {
-      const pname = this.getAttribute('data-practice');
+      var pname = this.getAttribute('data-practice');
       if (selectedPractice === pname) {
         selectedPractice = null;
-        document.querySelectorAll('.practice-row').forEach(r=>r.classList.remove('selected'));
+        document.querySelectorAll('.practice-row').forEach(function(r){r.classList.remove('selected');});
         document.getElementById('npi-panel').style.display = 'none';
       } else {
         selectedPractice = pname;
-        document.querySelectorAll('.practice-row').forEach(r=>r.classList.remove('selected'));
+        document.querySelectorAll('.practice-row').forEach(function(r){r.classList.remove('selected');});
         this.classList.add('selected');
         renderNPIs(selectedCohort, pname);
       }
@@ -308,48 +333,58 @@ function renderPractices(cohortMonth, cohortLabel) {
 }
 
 function renderNPIs(cohortMonth, practiceName) {
-  let npis = allLapsedNPIs.filter(n => n.prescriber_practice_name === practiceName && n.cohort_month === cohortMonth && (currentFilter === 'all' || n.segment === currentFilter));
-  currentNPIs = npis.map(n => n.npi);
-  document.getElementById('n-title').textContent = practiceName + ' — lapsed NPIs';
-  document.getElementById('n-sub').textContent = 'Had prior activity · silent this month';
+  var npis = allLapsedNPIs.filter(function(n) {
+    return n.prescriber_practice_name === practiceName && n.cohort_month === cohortMonth && (currentFilter === 'all' || n.segment === currentFilter);
+  });
+  currentNPIs = npis.map(function(n) { return n.npi; });
+  document.getElementById('n-title').textContent = practiceName + ' - lapsed NPIs';
+  document.getElementById('n-sub').textContent = 'Had prior activity - silent this month';
   document.getElementById('n-count').textContent = npis.length + ' provider' + (npis.length !== 1 ? 's' : '') + ' to reach out to';
-  document.getElementById('ntbody').innerHTML = npis.length === 0
-    ? '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888">No lapsed NPIs for this selection</td></tr>'
-    : npis.map(n => '<tr><td style="font-weight:500">' + (n.prescriber_first_name||'') + ' ' + (n.prescriber_last_name||'') + '</td><td style="font-family:monospace;font-size:10px;color:#888">' + n.npi + '</td><td>' + n.prescriber_practice_name + '</td><td>' + (n.cohort_label||'') + '</td><td><span class="seg-badge ' + (n.segment==='enterprise'?'seg-ent':'seg-smb') + '">' + (n.segment==='enterprise'?'ent':'smb') + '</span></td><td><span class="status-silent">Silent this month</span></td></tr>').join('');
+  if (npis.length === 0) {
+    document.getElementById('ntbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888">No lapsed NPIs for this selection</td></tr>';
+  } else {
+    var html = '';
+    npis.forEach(function(n) {
+      var badge = n.segment==='enterprise' ? '<span class="seg-badge seg-ent">ent</span>' : '<span class="seg-badge seg-smb">smb</span>';
+      html += '<tr><td style="font-weight:500">' + (n.prescriber_first_name||'') + ' ' + (n.prescriber_last_name||'') + '</td><td style="font-family:monospace;font-size:10px;color:#888">' + n.npi + '</td><td>' + (n.prescriber_practice_name||'') + '</td><td>' + (n.cohort_label||'') + '</td><td>' + badge + '</td><td><span class="status-silent">Silent this month</span></td></tr>';
+    });
+    document.getElementById('ntbody').innerHTML = html;
+  }
   document.getElementById('npi-panel').style.display = 'block';
   document.getElementById('npi-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-document.getElementById('p-close').addEventListener('click', () => {
+document.getElementById('p-close').addEventListener('click', function() {
   selectedCohort = null; selectedPractice = null;
-  document.querySelectorAll('.cohort-row').forEach(r=>r.classList.remove('selected'));
+  document.querySelectorAll('.cohort-row').forEach(function(r){r.classList.remove('selected');});
   document.getElementById('practice-panel').style.display = 'none';
   document.getElementById('npi-panel').style.display = 'none';
   document.getElementById('hint').textContent = 'Click a cohort row to see practice breakdown.';
 });
 
-document.getElementById('n-close').addEventListener('click', () => {
+document.getElementById('n-close').addEventListener('click', function() {
   selectedPractice = null;
-  document.querySelectorAll('.practice-row').forEach(r=>r.classList.remove('selected'));
+  document.querySelectorAll('.practice-row').forEach(function(r){r.classList.remove('selected');});
   document.getElementById('npi-panel').style.display = 'none';
 });
 
 document.getElementById('copy-btn').addEventListener('click', function() {
-  navigator.clipboard.writeText(currentNPIs.join('\n')).catch(()=>{});
+  navigator.clipboard.writeText(currentNPIs.join('\n')).catch(function(){});
   this.textContent = 'Copied!';
-  setTimeout(() => this.textContent = 'Copy NPI list', 1500);
+  var btn = this;
+  setTimeout(function() { btn.textContent = 'Copy NPI list'; }, 1500);
 });
 
 function setFilter(f, el) {
   currentFilter = f;
-  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.seg-btn').forEach(function(b){b.classList.remove('active');});
   el.classList.add('active');
   selectedPractice = null;
   document.getElementById('npi-panel').style.display = 'none';
   renderMain();
   if (selectedCohort) {
-    const label = allCohortRows.find(r=>r.cohort_month===selectedCohort)?.cohort_label || selectedCohort;
-    renderPractices(selectedCohort, label);
+    var found = allCohortRows.find(function(r){return r.cohort_month===selectedCohort;});
+    renderPractices(selectedCohort, found ? found.cohort_label : selectedCohort);
   }
 }
 
@@ -361,11 +396,12 @@ function initData(data) {
   document.getElementById('app').style.display = 'block';
   renderMain();
 }
+
 function loadFromHash() {
   try {
-    const hash = window.location.hash.slice(1);
+    var hash = window.location.hash.slice(1);
     if (hash) {
-      const data = JSON.parse(atob(hash));
+      var data = JSON.parse(atob(hash));
       initData(data);
     }
   } catch(e) {}
@@ -381,7 +417,6 @@ loadFromHash();
 setTimeout(loadFromHash, 500);
 setTimeout(loadFromHash, 1500);
 setTimeout(loadFromHash, 3000);
-});
 </script>
 </body>
 </html>
