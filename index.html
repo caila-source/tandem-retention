@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NPI Retention Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; }
+.page { padding: 20px; }
+.loading { display: flex; align-items: center; justify-content: center; height: 200px; color: #888; font-size: 14px; }
+.toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.toolbar-title { font-size: 14px; font-weight: 500; margin-right: 6px; }
+.seg-btn { font-size: 12px; padding: 5px 14px; border-radius: 20px; border: 1px solid #ddd; background: #fff; color: #666; cursor: pointer; transition: all 0.1s; }
+.seg-btn.active { background: #111; color: #fff; border-color: #111; }
+.summary-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+.scard { flex: 1; background: #f5f5f5; border-radius: 8px; padding: 10px 14px; }
+.scard-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+.scard-val { font-size: 20px; font-weight: 500; color: #111; }
+.scard-sub { font-size: 10px; color: #aaa; margin-top: 2px; }
+.hint { font-size: 11px; color: #888; margin-bottom: 10px; }
+.table-wrap { overflow-x: auto; border: 1px solid #eee; border-radius: 10px; }
+table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+th { background: #fafafa; padding: 8px 10px; text-align: right; font-weight: 500; color: #888; white-space: nowrap; border-bottom: 1px solid #eee; font-size: 11px; }
+th:first-child { text-align: left; min-width: 80px; }
+th:nth-child(2) { text-align: right; min-width: 50px; }
+td { padding: 6px 10px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; font-size: 11px; }
+td:first-child { text-align: left; font-size: 12px; font-weight: 500; }
+td:nth-child(2) { color: #888; }
+tr:last-child td { border-bottom: none; }
+.cohort-row { cursor: pointer; }
+.cohort-row:hover td { background: #fafafa; }
+.cohort-row.selected td { background: #E6F1FB !important; }
+.cohort-row.selected td:first-child { color: #185FA5; }
+.pct-cell { border-radius: 3px; font-weight: 500; }
+.empty-cell { color: #ccc; }
+.avg-row td { border-top: 1px solid #ddd; font-weight: 500; background: #fafafa; font-size: 11px; }
+.avg-row td:first-child { color: #888; }
+.legend { display: flex; align-items: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.legend-label { font-size: 11px; color: #888; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #888; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+.panel { margin-top: 16px; border: 1px solid #eee; border-radius: 10px; overflow: hidden; }
+.panel-header { padding: 11px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+.panel-title { font-size: 13px; font-weight: 500; color: #111; }
+.panel-sub { font-size: 11px; color: #888; margin-top: 2px; }
+.close-btn { background: none; border: none; font-size: 15px; cursor: pointer; color: #aaa; padding: 2px 6px; }
+.close-btn:hover { color: #111; }
+.panel-scroll { overflow-x: auto; }
+.ptable { width: 100%; border-collapse: collapse; font-size: 11px; }
+.ptable th { background: #fafafa; padding: 7px 10px; text-align: right; font-weight: 500; color: #888; white-space: nowrap; border-bottom: 1px solid #eee; }
+.ptable th:first-child { text-align: left; }
+.ptable th:nth-child(2) { text-align: left; }
+.ptable td { padding: 6px 10px; text-align: right; border-bottom: 1px solid #eee; }
+.ptable td:first-child { text-align: left; font-weight: 500; color: #111; }
+.ptable tr:last-child td { border-bottom: none; }
+.ptable tr.practice-row { cursor: pointer; }
+.ptable tr.practice-row:hover td { background: #fafafa; }
+.ptable tr.practice-row.selected td { background: #EAF3DE !important; }
+.ptable tr.practice-row.selected td:first-child { color: #0F6E56; }
+.ntable { width: 100%; border-collapse: collapse; font-size: 11px; }
+.ntable th { background: #fafafa; padding: 7px 12px; text-align: left; font-weight: 500; color: #888; white-space: nowrap; border-bottom: 1px solid #eee; }
+.ntable td { padding: 7px 12px; border-bottom: 1px solid #eee; color: #111; }
+.ntable tr:last-child td { border-bottom: none; }
+.ntable tr:hover td { background: #fafafa; }
+.seg-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 500; }
+.seg-ent { background: #E6F1FB; color: #0C447C; }
+.seg-smb { background: #EAF3DE; color: #27500A; }
+.lost-num { color: #A32D2D; font-weight: 500; }
+.status-silent { display: inline-block; background: #FCEBEB; color: #791F1F; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
+.npi-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid #eee; }
+.npi-count { font-size: 11px; color: #888; }
+.copy-btn { font-size: 11px; padding: 4px 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #111; cursor: pointer; }
+.copy-btn:hover { background: #f5f5f5; }
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading">Waiting for data from Retool...</div>
+
+<div id="app" class="page" style="display:none">
+  <div class="toolbar">
+    <span class="toolbar-title">Active NPI retention</span>
+    <button class="seg-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="seg-btn" onclick="setFilter('enterprise',this)">Enterprise</button>
+    <button class="seg-btn" onclick="setFilter('smb',this)">SMB</button>
+  </div>
+  <div class="summary-bar" id="summary-bar"></div>
+  <p class="hint" id="hint">Click a cohort row to see practice breakdown.</p>
+  <div class="table-wrap">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+      <tfoot id="tfoot"></tfoot>
+    </table>
+  </div>
+  <div class="legend">
+    <span class="legend-label">Retention:</span>
+    <div class="legend-item"><div class="legend-swatch" style="background:#b7e1cd"></div>≥90%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#d4edda"></div>≥85%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#fff3cd"></div>≥80%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#fce8e6"></div>≥75%</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#f4c7c3"></div>&lt;75%</div>
+  </div>
+
+  <div class="panel" id="practice-panel" style="display:none">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title" id="p-title"></div>
+        <div class="panel-sub" id="p-sub"></div>
+      </div>
+      <button class="close-btn" id="p-close">✕</button>
+    </div>
+    <div class="panel-scroll">
+      <table class="ptable">
+        <thead id="pthead"></thead>
+        <tbody id="ptbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="npi-panel" style="display:none">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title" id="n-title"></div>
+        <div class="panel-sub" id="n-sub"></div>
+      </div>
+      <button class="close-btn" id="n-close">✕</button>
+    </div>
+    <div class="npi-toolbar">
+      <span class="npi-count" id="n-count"></span>
+      <button class="copy-btn" id="copy-btn">Copy NPI list</button>
+    </div>
+    <div class="panel-scroll">
+      <table class="ntable">
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>NPI</th>
+            <th>Practice</th>
+            <th>Cohort</th>
+            <th>Segment</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="ntbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const MONTHS = ['m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','m13','m14','m15','m16'];
+let currentFilter = 'all';
+let selectedCohort = null;
+let selectedPractice = null;
+let currentNPIs = [];
+let allCohortRows = [];
+let allPracticeRows = [];
+let allLapsedNPIs = [];
+
+function getColor(v) {
+  if (v == null) return null;
+  const p = v <= 1 ? v * 100 : v;
+  if (p >= 90) return 'background:#b7e1cd;color:#085041';
+  if (p >= 85) return 'background:#d4edda;color:#0F6E56';
+  if (p >= 80) return 'background:#fff3cd;color:#633806';
+  if (p >= 75) return 'background:#fce8e6;color:#791F1F';
+  return 'background:#f4c7c3;color:#501313';
+}
+
+function toP(v) {
+  if (v == null) return null;
+  return v <= 1 ? Math.round(v * 100) : Math.round(v);
+}
+
+function getCohortMonths() {
+  const seen = new Set();
+  const months = [];
+  allCohortRows.forEach(r => {
+    if (!seen.has(r.cohort_month)) {
+      seen.add(r.cohort_month);
+      months.push({ key: r.cohort_month, label: r.cohort_label });
+    }
+  });
+  return months.sort((a,b) => a.key < b.key ? -1 : 1);
+}
+
+function getCohortRowData(cohortMonth) {
+  const rows = allCohortRows.filter(r => r.cohort_month === cohortMonth);
+  const entRow = rows.find(r => r.enterprise_vs_smb === 'enterprise');
+  const smbRow = rows.find(r => r.enterprise_vs_smb === 'smb');
+  if (currentFilter === 'enterprise') return entRow || null;
+  if (currentFilter === 'smb') return smbRow || null;
+  if (!entRow && !smbRow) return null;
+  if (!entRow) return smbRow;
+  if (!smbRow) return entRow;
+  const es = entRow.month_1_npis || 0;
+  const ss = smbRow.month_1_npis || 0;
+  const merged = { cohort_month: cohortMonth, cohort_label: entRow.cohort_label, month_1_npis: es + ss };
+  MONTHS.forEach(mk => {
+    const ev = entRow[mk], sv = smbRow[mk];
+    if (ev == null && sv == null) { merged[mk] = null; return; }
+    const eA = ev != null ? es * (ev <= 1 ? ev : ev/100) : 0;
+    const sA = sv != null ? ss * (sv <= 1 ? sv : sv/100) : 0;
+    const tot = (ev != null ? es : 0) + (sv != null ? ss : 0);
+    merged[mk] = tot > 0 ? (eA + sA) / tot : null;
+  });
+  return merged;
+}
+
+function renderMain() {
+  const cohortMonths = getCohortMonths();
+  document.getElementById('thead').innerHTML = '<tr><th>Cohort</th><th>Size</th>' + MONTHS.map((_,i) => '<th>'+(i+2)+'</th>').join('') + '</tr>';
+
+  let totalNPIs = 0, m2sum = 0, m2count = 0, latestLabel = '';
+  document.getElementById('tbody').innerHTML = cohortMonths.map(cm => {
+    const r = getCohortRowData(cm.key);
+    if (!r) return '';
+    totalNPIs += r.month_1_npis || 0;
+    if (r.m2 != null) { m2sum += toP(r.m2); m2count++; }
+    latestLabel = cm.label;
+    const sel = selectedCohort === cm.key;
+    const cells = MONTHS.map(mk => {
+      const v = r[mk];
+      if (v == null) return '<td class="empty-cell">—</td>';
+      const p = toP(v);
+      if (p === 100) return '<td style="color:#888;font-weight:500">100%</td>';
+      return '<td class="pct-cell" style="' + getColor(v) + ';padding:5px 9px">' + p + '%</td>';
+    });
+    return '<tr class="cohort-row' + (sel?' selected':'') + '" data-cohort="' + cm.key + '" data-label="' + cm.label + '"><td>' + cm.label + '</td><td>' + (r.month_1_npis||0).toLocaleString() + '</td>' + cells.join('') + '</tr>';
+  }).join('');
+
+  const avgCells = MONTHS.map(mk => {
+    const vals = cohortMonths.map(cm => { const r = getCohortRowData(cm.key); return r ? r[mk] : null; }).filter(v => v != null && toP(v) !== 100);
+    if (!vals.length) return '<td class="empty-cell">—</td>';
+    const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+    return '<td class="pct-cell" style="' + getColor(avg) + ';padding:5px 9px;font-weight:500">' + toP(avg) + '%</td>';
+  });
+  document.getElementById('tfoot').innerHTML = '<tr class="avg-row"><td>Avg</td><td></td>' + avgCells.join('') + '</tr>';
+
+  const latestSize = (getCohortRowData(cohortMonths[cohortMonths.length-1]?.key)?.month_1_npis||0).toLocaleString();
+  document.getElementById('summary-bar').innerHTML =
+    '<div class="scard"><div class="scard-label">Total NPIs</div><div class="scard-val">' + totalNPIs.toLocaleString() + '</div><div class="scard-sub">all cohorts</div></div>' +
+    '<div class="scard"><div class="scard-label">Avg M2 retention</div><div class="scard-val">' + (m2count ? Math.round(m2sum/m2count) : '—') + '%</div><div class="scard-sub">across all cohorts</div></div>' +
+    '<div class="scard"><div class="scard-label">Latest cohort</div><div class="scard-val">' + latestSize + '</div><div class="scard-sub">' + latestLabel + '</div></div>';
+
+  document.querySelectorAll('.cohort-row').forEach(row => {
+    row.addEventListener('click', function() {
+      const cohort = this.getAttribute('data-cohort');
+      const label = this.getAttribute('data-label');
+      if (selectedCohort === cohort) {
+        selectedCohort = null; selectedPractice = null;
+        document.querySelectorAll('.cohort-row').forEach(r=>r.classList.remove('selected'));
+        document.getElementById('practice-panel').style.display = 'none';
+        document.getElementById('npi-panel').style.display = 'none';
+        document.getElementById('hint').textContent = 'Click a cohort row to see practice breakdown.';
+      } else {
+        selectedCohort = cohort; selectedPractice = null;
+        document.querySelectorAll('.cohort-row').forEach(r=>r.classList.remove('selected'));
+        this.classList.add('selected');
+        document.getElementById('npi-panel').style.display = 'none';
+        renderPractices(cohort, label);
+        document.getElementById('hint').textContent = 'Now click a practice row to see which NPIs went silent.';
+      }
+    });
+  });
+}
+
+function renderPractices(cohortMonth, cohortLabel) {
+  let rows = allPracticeRows.filter(r => r.cohort_month === cohortMonth);
+  if (currentFilter !== 'all') rows = rows.filter(r => r.enterprise_vs_smb === currentFilter);
+  const maxVis = Math.max.apply(null, rows.map(r => { let last = 1; MONTHS.forEach((mk,i) => { if (r[mk] != null) last = i+2; }); return last; }).concat([2]));
+  const showMonths = MONTHS.slice(0, maxVis - 1);
+  document.getElementById('p-title').textContent = cohortLabel + ' cohort — practice breakdown';
+  document.getElementById('p-sub').textContent = rows.length + ' practices · ' + (currentFilter === 'all' ? 'all segments' : currentFilter);
+  document.getElementById('pthead').innerHTML = '<tr><th>Practice</th><th>Seg</th><th>Size</th>' + showMonths.map((_,i)=>'<th>M'+(i+2)+'</th>').join('') + '<th>Lost M2</th></tr>';
+  document.getElementById('ptbody').innerHTML = rows.slice().sort((a,b)=>(b.month_1_npis||0)-(a.month_1_npis||0)).map(p => {
+    const lostM2 = p.m2 != null ? (p.month_1_npis||0) - Math.round((p.month_1_npis||0)*(p.m2<=1?p.m2:p.m2/100)) : null;
+    const cells = showMonths.map(mk => {
+      const v = p[mk];
+      if (v == null) return '<td class="empty-cell">—</td>';
+      const pp = toP(v);
+      if (pp === 100) return '<td style="color:#888;font-weight:500">100%</td>';
+      return '<td class="pct-cell" style="' + getColor(v) + ';padding:4px 9px">' + pp + '%</td>';
+    });
+    const sel = selectedPractice === p.prescriber_practice_name;
+    const badge = p.enterprise_vs_smb==='enterprise' ? '<span class="seg-badge seg-ent">ent</span>' : '<span class="seg-badge seg-smb">smb</span>';
+    return '<tr class="practice-row' + (sel?' selected':'') + '" data-practice="' + p.prescriber_practice_name + '"><td>' + p.prescriber_practice_name + '</td><td>' + badge + '</td><td style="color:#888">' + (p.month_1_npis||0).toLocaleString() + '</td>' + cells.join('') + '<td class="' + (lostM2>0?'lost-num':'') + '">' + (lostM2!==null?lostM2:'—') + '</td></tr>';
+  }).join('');
+  document.getElementById('practice-panel').style.display = 'block';
+  document.getElementById('practice-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.querySelectorAll('.practice-row').forEach(row => {
+    row.addEventListener('click', function() {
+      const pname = this.getAttribute('data-practice');
+      if (selectedPractice === pname) {
+        selectedPractice = null;
+        document.querySelectorAll('.practice-row').forEach(r=>r.classList.remove('selected'));
+        document.getElementById('npi-panel').style.display = 'none';
+      } else {
+        selectedPractice = pname;
+        document.querySelectorAll('.practice-row').forEach(r=>r.classList.remove('selected'));
+        this.classList.add('selected');
+        renderNPIs(selectedCohort, pname);
+      }
+    });
+  });
+}
+
+function renderNPIs(cohortMonth, practiceName) {
+  let npis = allLapsedNPIs.filter(n => n.prescriber_practice_name === practiceName && n.cohort_month === cohortMonth && (currentFilter === 'all' || n.segment === currentFilter));
+  currentNPIs = npis.map(n => n.npi);
+  document.getElementById('n-title').textContent = practiceName + ' — lapsed NPIs';
+  document.getElementById('n-sub').textContent = 'Had prior activity · silent this month';
+  document.getElementById('n-count').textContent = npis.length + ' provider' + (npis.length !== 1 ? 's' : '') + ' to reach out to';
+  document.getElementById('ntbody').innerHTML = npis.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888">No lapsed NPIs for this selection</td></tr>'
+    : npis.map(n => '<tr><td style="font-weight:500">' + (n.prescriber_first_name||'') + ' ' + (n.prescriber_last_name||'') + '</td><td style="font-family:monospace;font-size:10px;color:#888">' + n.npi + '</td><td>' + n.prescriber_practice_name + '</td><td>' + (n.cohort_label||'') + '</td><td><span class="seg-badge ' + (n.segment==='enterprise'?'seg-ent':'seg-smb') + '">' + (n.segment==='enterprise'?'ent':'smb') + '</span></td><td><span class="status-silent">Silent this month</span></td></tr>').join('');
+  document.getElementById('npi-panel').style.display = 'block';
+  document.getElementById('npi-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+document.getElementById('p-close').addEventListener('click', () => {
+  selectedCohort = null; selectedPractice = null;
+  document.querySelectorAll('.cohort-row').forEach(r=>r.classList.remove('selected'));
+  document.getElementById('practice-panel').style.display = 'none';
+  document.getElementById('npi-panel').style.display = 'none';
+  document.getElementById('hint').textContent = 'Click a cohort row to see practice breakdown.';
+});
+
+document.getElementById('n-close').addEventListener('click', () => {
+  selectedPractice = null;
+  document.querySelectorAll('.practice-row').forEach(r=>r.classList.remove('selected'));
+  document.getElementById('npi-panel').style.display = 'none';
+});
+
+document.getElementById('copy-btn').addEventListener('click', function() {
+  navigator.clipboard.writeText(currentNPIs.join('\n')).catch(()=>{});
+  this.textContent = 'Copied!';
+  setTimeout(() => this.textContent = 'Copy NPI list', 1500);
+});
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  selectedPractice = null;
+  document.getElementById('npi-panel').style.display = 'none';
+  renderMain();
+  if (selectedCohort) {
+    const label = allCohortRows.find(r=>r.cohort_month===selectedCohort)?.cohort_label || selectedCohort;
+    renderPractices(selectedCohort, label);
+  }
+}
+
+function initData(data) {
+  allCohortRows   = data.cohortData   || [];
+  allPracticeRows = data.practiceData || [];
+  allLapsedNPIs   = data.lapsedNPIs   || [];
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  renderMain();
+}
+
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'retool-data') {
+    initData(event.data);
+  }
+});
+</script>
+</body>
+</html>
